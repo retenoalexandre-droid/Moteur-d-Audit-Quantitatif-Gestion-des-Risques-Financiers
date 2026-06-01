@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 import yfinance as yf
+import matplotlib.pyplot as plt
 from typing import List, Dict, Union
 
 # =============================================================================
@@ -89,11 +90,8 @@ class CorporateValuation:
         return cash_levels
 
 # =============================================================================
-# ZONE D'EXÉCUTION (LE CRASH-TEST AVEC DONNÉES RÉELLES)
+# FONCTION DE VISUALISATION GRAPHIQUE
 # =============================================================================
-
-import matplotlib.pyplot as plt
-
 def plot_financial_graphics(cash_trajectory: List[float], returns: List[float], var_threshold: float):
     """ Génère des graphiques professionnels pour le README ou le portfolio """
     plt.style.use('seaborn-v0_8-darkgrid' if 'seaborn-v0_8-darkgrid' in plt.style.available else 'default')
@@ -117,30 +115,30 @@ def plot_financial_graphics(cash_trajectory: List[float], returns: List[float], 
     
     plt.tight_layout()
     plt.show()
+
+# =============================================================================
+# ZONE D'EXÉCUTION (LE CRASH-TEST AVEC DONNÉES RÉELLES)
+# =============================================================================
 if __name__ == "__main__":
     logger.info("=== DÉMARRAGE DE L'AUDIT QUANTITATIF (LIVE DATA) ===")
 
     # ---------------------------------------------------------
     # MODULE 1 : YFINANCE & RISQUE DE MARCHÉ
     # ---------------------------------------------------------
-    ticker_symbol = "TSLA" # Modifie ce symbole pour tester d'autres actifs (ex: AAPL, ^GSPC, BTC-USD)
+    ticker_symbol = "TSLA" 
     logger.info(f"[MODULE 1A] Téléchargement des données pour {ticker_symbol} (1 dernière année)...")
     
     try:
-        # Téléchargement silencieux des données historiques
         market_data = yf.download(ticker_symbol, period="1y", progress=False)
         
         if market_data.empty:
             raise ValueError(f"Impossible de récupérer les données pour {ticker_symbol}.")
 
-        # Calcul des rendements quotidiens (Prix du jour / Prix de la veille - 1)
-        # On supprime la première ligne (NaN) et on convertit en liste
         real_returns = market_data['Close'].pct_change().dropna().iloc[:, 0].tolist()
-        derniers_prix = market_data['Close'].iloc[-1, 0] # Le prix de la dernière clôture
+        derniers_prix = market_data['Close'].iloc[-1, 0] 
         
         logger.info(f" -> {len(real_returns)} jours de trading analysés. Prix actuel : {derniers_prix:.2f}$")
 
-        # Calcul VaR et ES avec nos vraies données à 95% de confiance
         resultat_risque = RiskManagement.calculate_expected_shortfall(real_returns, confidence_level=0.95)
         
         logger.info(f" -> Value at Risk (VaR 95%) : {resultat_risque['VaR']:.2%} (Pire perte quotidienne 'normale')")
@@ -150,12 +148,11 @@ if __name__ == "__main__":
         # MODULE 1B : BÂLE III AVEC LE VRAI ES
         # ---------------------------------------------------------
         logger.info("\n[MODULE 1B] Stress Test Bâle III (Basé sur le choc réel)")
-        # On utilise l'Expected Shortfall calculé (en valeur absolue) comme sévérité du crash !
         crash_severity = abs(resultat_risque['Expected_Shortfall'])
         
         resultat_banque = RiskManagement.basel_iii_stress_test(
             assets=10_000_000, 
-            equity_ratio=0.08, # 8% de fonds propres
+            equity_ratio=0.08, 
             crash_severity=crash_severity
         )
         logger.info(f" -> Plan de sauvetage requis ? {'OUI' if resultat_banque['Bailout_Required'] else 'NON'}")
@@ -165,7 +162,6 @@ if __name__ == "__main__":
         # MODULE 2 : SÉCURITÉ HFT 
         # ---------------------------------------------------------
         logger.info("\n[MODULE 2] Sécurité Haute Fréquence (Flash Crash simulé)")
-        # On simule un robot fou qui tente de vendre l'action TSLA 15% moins cher que son vrai dernier prix
         prix_hft_fou = derniers_prix * 0.85
         AlgorithmicSafeguards.circuit_breaker_luld(
             current_price=prix_hft_fou, 
@@ -183,13 +179,10 @@ if __name__ == "__main__":
     valeur_reelle = CorporateValuation.present_value_dcf(future_cash_flow=10_000_000, discount_rate=0.10, years_in_future=5)
     logger.info(f" -> DCF : Valeur actuelle de 10M€ dans 5 ans : {valeur_reelle:,.2f} €")
     
-    CorporateValuation.cash_burn_trajectory(initial_cash=50000, margin_per_unit=-2.5, volume_array=[1000, 5000, 15000, 50000])
-    
-    # À insérer tout à la fin de ton bloc "if __name__ == '__main__':"
-    # Récupération des données pour le tracé
+    # Récupération des données et exécution du tracé de Cash Burn
     trajectoire = CorporateValuation.cash_burn_trajectory(initial_cash=50000, margin_per_unit=-2.5, volume_array=[1000, 5000, 15000, 50000])
     
     logger.info("\n[VISUALISATION] Génération des graphiques d'analyse...")
     plot_financial_graphics(cash_trajectory=trajectoire, returns=real_returns, var_threshold=resultat_risque['VaR'])
     
-  logger.info("=== FIN DE L'AUDIT ===")
+    logger.info("=== FIN DE L'AUDIT ===")
